@@ -1,8 +1,4 @@
-﻿// Flare.h : Include file for standard system include files,
-// Coded by D3lete
-
-#pragma once
-
+﻿#pragma once
 #include <iostream>
 #include "Window/Window.h"
 #include <thread>
@@ -12,7 +8,4 @@
 #include "Gui/SidePanel.h"
 #include "Gui/Label.h"
 #include <chrono>
-
-
 using namespace std;
-

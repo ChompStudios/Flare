@@ -13,41 +13,62 @@
 #include <X11/Xutil.h>
 #endif
 
+// ---------------------------------------------
+// InputStyle
+// Defines visual style for input boxes
+// ---------------------------------------------
 struct InputStyle {
-    Color bgColor = { 255, 255, 255 };
-    Color textColor = { 0, 0, 0 };
-    Color borderColor = { 0, 0, 0 };
-    int borderRadius = 8;
-    int borderThickness = 1;
+    Color bgColor = { 255, 255, 255 };     // Background color
+    Color textColor = { 0, 0, 0 };         // Text color
+    Color borderColor = { 0, 0, 0 };       // Border color
+    int borderRadius = 8;                  // Corner radius (Win32 only)
+    int borderThickness = 1;               // Border thickness
 };
 
+// ---------------------------------------------
+// InputBox
+// A text input field with optional callback
+// Supports cursor blinking when focused
+// ---------------------------------------------
 class InputBox : public GUIElement {
 public:
+    // Constructor
+    // rect     : Position and size of the input box
+    // cb       : Callback triggered on Enter/Return
+    // style    : Visual style of the input box
     InputBox(const Rect& rect, std::function<void(const std::string&)> cb, InputStyle style = InputStyle())
         : GUIElement(rect), m_callback(cb), m_style(style),
-        m_focused(false), m_text(""), m_lastBlink(std::chrono::steady_clock::now()), m_cursorVisible(true) {
+        m_focused(false), m_text(""),
+        m_lastBlink(std::chrono::steady_clock::now()), m_cursorVisible(true) {
     }
 
+    // Draw the input box
     void draw(void* windowHandle = nullptr, void* display = nullptr) override {
 #ifdef _WIN32
         if (!windowHandle) return;
+
         HDC hdc = GetDC((HWND)windowHandle);
 
+        // Draw background and border
         Color bg = m_style.bgColor;
         HBRUSH brush = CreateSolidBrush(RGB(bg.r, bg.g, bg.b));
-        HPEN pen = CreatePen(PS_SOLID, m_style.borderThickness, RGB(m_style.borderColor.r, m_style.borderColor.g, m_style.borderColor.b));
+        HPEN pen = CreatePen(PS_SOLID, m_style.borderThickness,
+            RGB(m_style.borderColor.r, m_style.borderColor.g, m_style.borderColor.b));
 
         HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, brush);
         HPEN oldPen = (HPEN)SelectObject(hdc, pen);
 
-        RoundRect(hdc, m_rect.x, m_rect.y, m_rect.x + m_rect.width, m_rect.y + m_rect.height,
+        RoundRect(hdc, m_rect.x, m_rect.y,
+            m_rect.x + m_rect.width, m_rect.y + m_rect.height,
             m_style.borderRadius, m_style.borderRadius);
 
+        // Draw text
         SetBkMode(hdc, TRANSPARENT);
         SetTextColor(hdc, RGB(m_style.textColor.r, m_style.textColor.g, m_style.textColor.b));
         RECT r = { m_rect.x + 5, m_rect.y + 5, m_rect.x + m_rect.width - 5, m_rect.y + m_rect.height - 5 };
         DrawTextA(hdc, m_text.c_str(), -1, &r, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
 
+        // Draw cursor if focused
         updateCursorBlink();
         if (m_focused && m_cursorVisible) {
             SIZE sz;
@@ -64,24 +85,28 @@ public:
 #endif
     }
 
+    // Handle mouse click
     void onClick(int x, int y) override {
         m_focused = contains(x, y);
     }
 
+    // Handle keyboard input
     void onKeyPress(char c) {
         if (!m_focused) return;
-        if (c == '\b') {
+
+        if (c == '\b') { // Backspace
             if (!m_text.empty()) m_text.pop_back();
         }
-        else if (c == '\r' || c == '\n') {
+        else if (c == '\r' || c == '\n') { // Enter/Return
             if (m_callback) m_callback(m_text);
         }
-        else {
+        else { // Regular character
             m_text.push_back(c);
         }
     }
 
 private:
+    // Update cursor blinking
     void updateCursorBlink() {
         auto now = std::chrono::steady_clock::now();
         if (std::chrono::duration_cast<std::chrono::milliseconds>(now - m_lastBlink).count() > 500) {
@@ -90,12 +115,12 @@ private:
         }
     }
 
-    std::string m_text;
-    std::function<void(const std::string&)> m_callback;
-    InputStyle m_style;
-    bool m_focused;
-    bool m_cursorVisible;
-    std::chrono::steady_clock::time_point m_lastBlink;
+    std::string m_text;                              // Current text
+    std::function<void(const std::string&)> m_callback; // Callback for Enter key
+    InputStyle m_style;                              // Visual style
+    bool m_focused;                                  // Is input focused
+    bool m_cursorVisible;                             // Cursor blink state
+    std::chrono::steady_clock::time_point m_lastBlink; // Last blink timestamp
 };
 
-#endif
+#endif // INPUTBOX_H

@@ -1,19 +1,26 @@
 #include "Window.h"
 #include <iostream>
+#include "../Gui/GUIManager.h"
+
+extern GUIManager guiManager;
 
 #ifdef _WIN32
 #include <windows.h>
 #include <windowsx.h>
-#include "../Gui/GUIManager.h"
-extern GUIManager guiManager;
 
 #pragma comment(linker, "/SUBSYSTEM:windows /ENTRY:mainCRTStartup")
 
-// Forward declare helper to get Window pointer from hwnd
+// ---------------------------------------------
+// Helper: Retrieve Window pointer from HWND
+// ---------------------------------------------
 inline Window* GetWindowPtr(HWND hwnd) {
     return (Window*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
 }
 
+// ---------------------------------------------
+// Window procedure (Windows)
+// Handles paint, clicks, keyboard, and close events
+// ---------------------------------------------
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     Window* window = GetWindowPtr(hwnd);
 
@@ -26,6 +33,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hwnd, &ps);
 
+        // Fill background
         if (window) {
             RECT clientRect;
             GetClientRect(hwnd, &clientRect);
@@ -35,6 +43,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
             DeleteObject(brush);
         }
 
+        // Draw GUI elements
         guiManager.draw(hwnd);
 
         EndPaint(hwnd, &ps);
@@ -49,7 +58,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
     }
 
     case WM_CHAR: {
-        char c = (char)wParam;
+        char c = static_cast<char>(wParam);
         guiManager.keyPress(c);
         return 0;
     }
@@ -59,6 +68,9 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
     }
 }
 
+// ---------------------------------------------
+// Window: Constructor / Destructor
+// ---------------------------------------------
 Window::Window(const std::string& title, int width, int height, Color bg)
     : m_title(title), m_width(width), m_height(height),
     m_shouldClose(false), m_hwnd(nullptr), m_bg(bg) {
@@ -69,6 +81,9 @@ Window::~Window() {
     if (m_hwnd) DestroyWindow((HWND)m_hwnd);
 }
 
+// ---------------------------------------------
+// Window: Creation & Display
+// ---------------------------------------------
 bool Window::create() {
     HINSTANCE hInstance = GetModuleHandle(nullptr);
 
@@ -114,6 +129,9 @@ void Window::pollEvents() {
 
 bool Window::shouldClose() const { return m_shouldClose; }
 
+// ---------------------------------------------
+// Console Control
+// ---------------------------------------------
 void Window::showConsole() {
     AllocConsole();
     freopen("CONOUT$", "w", stdout);
@@ -126,9 +144,10 @@ void Window::hideConsole() { FreeConsole(); }
 
 #include <X11/Xlib.h>
 #include <unistd.h>
-#include "../Gui/GUIManager.h"
-extern GUIManager guiManager;
 
+// ---------------------------------------------
+// Window: Constructor / Destructor (X11)
+// ---------------------------------------------
 Window::Window(const std::string& title, int width, int height, Color bg)
     : m_title(title), m_width(width), m_height(height),
     m_shouldClose(false), m_display(nullptr), m_window(0), m_bg(bg) {
@@ -141,6 +160,9 @@ Window::~Window() {
     }
 }
 
+// ---------------------------------------------
+// Window: Creation & Display (X11)
+// ---------------------------------------------
 bool Window::create() {
     Display* display = XOpenDisplay(nullptr);
     if (!display) {
@@ -167,6 +189,9 @@ void Window::show() {
     XFlush((Display*)m_display);
 }
 
+// ---------------------------------------------
+// Poll events (X11)
+// ---------------------------------------------
 void Window::pollEvents() {
     if (!m_display) return;
 
@@ -174,26 +199,30 @@ void Window::pollEvents() {
         XEvent ev;
         XNextEvent((Display*)m_display, &ev);
 
-        if (ev.type == DestroyNotify) m_shouldClose = true;
-
-        if (ev.type == ButtonPress) {
+        switch (ev.type) {
+        case DestroyNotify:
+            m_shouldClose = true;
+            break;
+        case ButtonPress: {
             int x = ev.xbutton.x;
             int y = ev.xbutton.y;
             guiManager.click(x, y);
+            break;
         }
-
-        if (ev.type == KeyPress) {
+        case KeyPress: {
             char c = XLookupKeysym(&ev.xkey, 0);
             guiManager.keyPress(c);
+            break;
         }
-
-        if (ev.type == Expose) {
+        case Expose: {
             Display* display = (Display*)m_display;
             GC gc = DefaultGC(display, DefaultScreen(display));
             XSetForeground(display, gc, (m_bg.r << 16) | (m_bg.g << 8) | m_bg.b);
             XFillRectangle(display, m_window, gc, 0, 0, m_width, m_height);
 
             guiManager.draw(nullptr, m_display);
+            break;
+        }
         }
     }
 }
