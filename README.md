@@ -32,11 +32,4 @@ Any unauthorized use, duplication, modification, or distribution of this reposit
 
 ---
 
-## Contact
-
-For permissions or questions regarding this repository, please contact:  
-**ChompStudios** – [Marko.chomp@gmail.com]
-
----
-
 > **Disclaimer:** This repository is proprietary. Viewing or cloning without explicit permission does **not grant rights** to modify or use any part of it.
