@@ -81,7 +81,7 @@ int main() {
     // -------------------------------
     Label* aboutLabel = new Label(
         { 250, 100, 200, 30 },
-        "This is the About tab."
+        "IDK THIS A DAM TEST TWIN"
     );
     tabs->addElementToTab(2, aboutLabel);
 
